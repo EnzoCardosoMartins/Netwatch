@@ -62,6 +62,7 @@ def iniciar_sensor():
             enviar_alerta_tcp(pacote_alerta)
             hash_antigo = hash_novo
 
+        # Enviando os dados para o Server
         udp_socket.sendto(mensagem.encode('utf-8'), endereco_destino)
 
         seq_number+=1
