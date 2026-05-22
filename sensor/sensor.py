@@ -3,17 +3,33 @@ import os
 import socket
 import time
 import json
-from collector import collect_system_metrics
+from collector import collect_system_metrics, calcular_hash_arquivo, SENSOR_ID
 
 IP_SERVER = "127.0.0.1"
 UDP_PORT = 9999
 TCP_PORT = 9998
+hash_antigo = calcular_hash_arquivo("collector.py")
+
+
+def enviar_alerta_tcp(payload_alerta):
+
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    endereco_destino = (IP_SERVER, TCP_PORT)
+    tcp_socket.connect(endereco_destino)
+    mensagem = json.dumps(payload_alerta).encode('utf-8')
+    tcp_socket.sendall(mensagem)
+    tcp_socket.close()
+
+
 
 def iniciar_sensor():
+
+    global hash_antigo
+
     print("[*] Configurando o Sensor NetWatch...")
 
     # Cria o socket (AF_INET diz que eh IPv4 e SOCK_DGRAM diz que eh UDP)
-    meu_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     # Numero de sequencia dos pacotes (usado para verificar perda de pacotes UDP)
     seq_number = 0
@@ -25,7 +41,28 @@ def iniciar_sensor():
         mensagem = json.dumps(collect_system_metrics(seq_number))
         endereco_destino = (IP_SERVER, UDP_PORT)
 
-        meu_socket.sendto(mensagem.encode('utf-8'), endereco_destino)
+        hash_novo = calcular_hash_arquivo("collector.py")
+
+        if(hash_antigo != hash_novo):
+            print("[⚠️] ALERTA: Modificação detectada no arquivo crítico!")
+
+            pacote_alerta = {
+                "protocol": "NAP",
+                "version": "1.0",
+                "type": "ALERT",
+                "sensor_id": SENSOR_ID,
+                "timestamp": time.time(),
+                "seq_number": 0,
+                "payload": {
+                "severity": "CRITICAL",
+                "category": "FILE_INTEGRITY",
+                "description": f"O arquivo collector.py foi modificado de {hash_antigo} para {hash_novo}"
+                }
+            }
+            enviar_alerta_tcp(pacote_alerta)
+            hash_antigo = hash_novo
+
+        udp_socket.sendto(mensagem.encode('utf-8'), endereco_destino)
 
         seq_number+=1
 
