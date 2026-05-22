@@ -5,8 +5,9 @@ import time
 import json
 from collector import collect_system_metrics
 
-SERVIDOR_IP = "127.0.0.1"
-PORTA_UDP = 9999
+IP_SERVER = "127.0.0.1"
+UDP_PORT = 9999
+TCP_PORT = 9998
 
 def iniciar_sensor():
     print("[*] Configurando o Sensor NetWatch...")
@@ -22,7 +23,7 @@ def iniciar_sensor():
         
         # A collect_system_number retorna um dicionario, porem o encode so funciona com string continua
         mensagem = json.dumps(collect_system_metrics(seq_number))
-        endereco_destino = (SERVIDOR_IP, PORTA_UDP)
+        endereco_destino = (IP_SERVER, UDP_PORT)
 
         meu_socket.sendto(mensagem.encode('utf-8'), endereco_destino)
 
