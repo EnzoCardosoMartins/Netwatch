@@ -39,8 +39,8 @@ def listen_udp():
 
             cursor.execute(
                 """
-                INSERT INTO metrics (sensor_id, cpu_percent, ram_percent, timestamp)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO metrics (sensor_id, cpu_percent, ram_percent, active_connections, seq_number, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (sensor_id, 
                     payload["cpu_percent"], 

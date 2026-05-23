@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetWatch SIEM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ───────────────────────────────────────────── */
+    :root {
+      --bg:        #0f1117;
+      --surface:   #161c28;
+      --surface-2: #1d2435;
+      --border:    #252f42;
+      --border-hi: #344057;
+      --text:      #dde3ed;
+      --text-dim:  #5a6a82;
+      --text-mid:  #8a9ab5;
+      --green:     #22c55e;
+      --green-bg:  rgba(34,197,94,0.08);
+      --red:       #ef4444;
+      --red-bg:    rgba(239,68,68,0.09);
+      --amber:     #f59e0b;
+      --amber-bg:  rgba(245,158,11,0.09);
+      --blue:      #60a5fa;
+      --blue-bg:   rgba(96,165,250,0.09);
+      --orange:    #fb923c;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Alert banner ────────────────────────────────────────── */
+    #alert-banner {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 999;
+      background: #1a0f0f;
+      border-bottom: 2px solid var(--red);
+      padding: 10px 24px;
+      font-size: 0.8rem;
+      color: var(--red);
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    #alert-banner.visible { display: flex; }
+    #alert-banner .msg { display: flex; align-items: center; gap: 10px; }
+    #alert-banner .dismiss {
+      background: none; border: 1px solid var(--red);
+      color: var(--red); cursor: pointer;
+      padding: 3px 12px; font-family: inherit; font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    #alert-banner .dismiss:hover { background: var(--red-bg); }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px 32px;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+      gap: 16px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-mark {
+      width: 32px; height: 32px;
+      background: var(--green-bg);
+      border: 1px solid rgba(34,197,94,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      color: var(--green);
+      flex-shrink: 0;
+    }
+    .logo-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.03em;
+    }
+    .logo-sub {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-family: 'IBM Plex Mono', monospace;
+      margin-top: 1px;
+    }
+
+    .header-right {
+      display: flex; align-items: center; gap: 20px;
+    }
+    .status-pill {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 0.75rem;
+      color: var(--text-mid);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .dot.online  { background: var(--green); animation: blink 2.5s ease-in-out infinite; }
+    .dot.offline { background: var(--red); }
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+    #clock, #last-update {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* ── Stat cards ──────────────────────────────────────────── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+      position: relative;
+    }
+    .card-label {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .card-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.75rem;
+      font-weight: 500;
+      line-height: 1;
+      color: var(--text);
+    }
+    .card-sub {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-top: 5px;
+    }
+    /* accent bar top */
+    .card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--c, var(--border));
+    }
+    .card.c-green { --c: var(--green); }
+    .card.c-red   { --c: var(--red);   .card-value { color: var(--red); } }
+    .card.c-ora   { --c: var(--orange); }
+    .card.c-amb   { --c: var(--amber); }
+    .card.c-blue  { --c: var(--blue); }
+    .card.c-red   .card-value { color: var(--red); }
+    .card.c-ora   .card-value { color: var(--orange); }
+    .card.c-amb   .card-value { color: var(--amber); }
+    .card.c-blue  .card-value { color: var(--blue); }
+
+    /* ── Main grid ───────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px;
+    }
+
+    /* ── Panel ───────────────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .panel-title {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-mid);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .panel-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+    }
+    .panel-body { padding: 14px; flex: 1; }
+
+    /* ── Chart blocks ────────────────────────────────────────── */
+    .chart-block {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .chart-block:last-of-type { margin-bottom: 0; }
+    .chart-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .chart-label {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .chart-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    canvas {
+      display: block; width: 100%; height: 60px;
+    }
+
+    /* ── Sensor info grid ────────────────────────────────────── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 16px;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      padding: 12px;
+    }
+    .info-item { display: flex; flex-direction: column; gap: 2px; }
+    .info-key  { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+    .info-val  {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ── Events table ────────────────────────────────────────── */
+    .table-wrap {
+      overflow-y: auto;
+      max-height: 580px;
+      flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .table-wrap::-webkit-scrollbar { width: 4px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+    thead th {
+      position: sticky; top: 0;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-2); }
+    tbody tr.new { animation: fadeIn 0.6s ease; }
+    @keyframes fadeIn {
+      from { background: rgba(34,197,94,0.06); }
+      to   { background: transparent; }
+    }
+    td {
+      padding: 9px 12px;
+      vertical-align: middle;
+    }
+    td.mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+    }
+    td.desc {
+      color: var(--text-mid);
+      font-size: 0.73rem;
+      max-width: 300px;
+      white-space: normal;
+    }
+
+    /* severity */
+    .sev {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      border-radius: 2px;
+    }
+    .sev.CRITICAL { background: var(--red-bg);   color: var(--red);    border: 1px solid rgba(239,68,68,0.3); }
+    .sev.HIGH     { background: rgba(251,146,60,0.1); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+    .sev.MEDIUM   { background: var(--amber-bg); color: var(--amber);  border: 1px solid rgba(245,158,11,0.3); }
+    .sev.LOW      { background: var(--blue-bg);  color: var(--blue);   border: 1px solid rgba(96,165,250,0.3); }
+
+    /* category */
+    .cat {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 0.62rem;
+      color: var(--text-mid);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      white-space: nowrap;
+    }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty {
+      padding: 48px 20px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+    }
+
+    /* ── Footer strip ────────────────────────────────────────── */
+    .footer {
+      margin-top: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .footer-left  { font-size: 0.68rem; color: var(--text-dim); }
+    .footer-right {
+      display: flex; gap: 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+    }
+    .footer-right span { display: flex; align-items: center; gap: 6px; }
+    .footer-right b { color: var(--text-mid); }
+
+    /* ── Port legend ─────────────────────────────────────────── */
+    .ports {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 12px;
+      border: 1px solid var(--border);
+    }
+    .port-item {
+      padding: 9px 14px;
+      border-right: 1px solid var(--border);
+    }
+    .port-item:last-child { border-right: none; }
+    .port-label { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .port-val   {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────── */
+    .spinner {
+      width: 12px; height: 12px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 1000px) {
+      .grid  { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(3, 1fr); }
+      .ports { grid-template-columns: repeat(2, 1fr); }
+      .port-item:nth-child(2) { border-right: none; }
+    }
+    @media (max-width: 580px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .header-right #clock, .header-right #last-update { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Alert banner -->
+<div id="alert-banner">
+  <div class="msg">
+    <span>⚠</span>
+    <span id="alert-msg">Evento crítico detectado.</span>
+  </div>
+  <button class="dismiss" onclick="dismissAlert()">Dispensar</button>
+</div>
+
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">⬡</div>
+      <div>
+        <div class="logo-name">NetWatch SIEM</div>
+        <div class="logo-sub">NAP/1.0 · CIC0124 Redes de Computadores · UnB</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span id="last-update"></span>
+      <div class="status-pill">
+        <div class="dot" id="status-dot"></div>
+        <span id="status-text" style="font-size:0.75rem">–</span>
+      </div>
+      <span id="clock"></span>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="card c-green">
+      <div class="card-label">Total de alertas</div>
+      <div class="card-value" id="count-total">–</div>
+      <div class="card-sub">eventos registrados</div>
+    </div>
+    <div class="card c-red">
+      <div class="card-label">Críticos</div>
+      <div class="card-value" id="count-critical">–</div>
+      <div class="card-sub">severidade CRITICAL</div>
+    </div>
+    <div class="card c-ora">
+      <div class="card-label">Altos</div>
+      <div class="card-value" id="count-high">–</div>
+      <div class="card-sub">severidade HIGH</div>
+    </div>
+    <div class="card c-amb">
+      <div class="card-label">Médios</div>
+      <div class="card-value" id="count-medium">–</div>
+      <div class="card-sub">severidade MEDIUM</div>
+    </div>
+    <div class="card c-blue">
+      <div class="card-label">Baixos</div>
+      <div class="card-value" id="count-low">–</div>
+      <div class="card-sub">severidade LOW</div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="grid">
+
+    <!-- Left: charts + sensor info -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Telemetria do Host</span>
+        <span class="panel-badge" id="sensor-label">aguardando sensor</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="chart-block">
+          <div class="chart-row">
+            <span class="chart-label">CPU</span>
+            <span class="chart-val" id="cpu-value" style="color:var(--green)">–</span>
+          </div>
+          <canvas id="chart-cpu"></canvas>
+        </div>
+
+        <div class="chart-block">
+          <div class="chart-row">
+            <span class="chart-label">RAM</span>
+            <span class="chart-val" id="ram-value" style="color:var(--blue)">–</span>
+          </div>
+          <canvas id="chart-ram"></canvas>
+        </div>
+
+        <div class="chart-block">
+          <div class="chart-row">
+            <span class="chart-label">Conexões ativas</span>
+            <span class="chart-val" id="conn-value" style="color:var(--amber)">–</span>
+          </div>
+          <canvas id="chart-conn"></canvas>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-key">Sensor ID</span>
+            <span class="info-val" id="sensor-id">–</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">Protocolo</span>
+            <span class="info-val">NAP v1.0</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">UDP seq #</span>
+            <span class="info-val" id="udp-seq">–</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">Último pacote</span>
+            <span class="info-val" id="last-packet">–</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">Perda UDP</span>
+            <span class="info-val" id="udp-loss">–</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">Polling</span>
+            <span class="info-val">2 s</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right: events table -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Log de incidentes</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="spinner" id="spinner"></div>
+          <span class="panel-badge">TCP · porta 9998</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Horário</th>
+              <th>Sensor</th>
+              <th>Severidade</th>
+              <th>Categoria</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+            <tr>
+              <td colspan="6">
+                <div class="empty">Aguardando eventos do sensor...</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+
+  <!-- Port legend -->
+  <div class="ports">
+    <div class="port-item">
+      <div class="port-label">Canal telemetria</div>
+      <div class="port-val">UDP :9999</div>
+    </div>
+    <div class="port-item">
+      <div class="port-label">Canal alertas</div>
+      <div class="port-val">TCP :9998</div>
+    </div>
+    <div class="port-item">
+      <div class="port-label">API HTTP</div>
+      <div class="port-val">TCP :5000</div>
+    </div>
+    <div class="port-item">
+      <div class="port-label">Persistência</div>
+      <div class="port-val">SQLite WAL</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-left">NetWatch SIEM · CIC0124 Redes de Computadores · UnB</div>
+    <div class="footer-right">
+      <span>Requisições: <b id="poll-count">0</b></span>
+      <span>Encapsulamento: <b>App → TCP/UDP → IP → Enlace</b></span>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+  const API = 'http://127.0.0.1:5000';
+  const POLL_MS = 2000;
+  const MAX_PTS = 30;
+
+  const buf = { cpu: [], ram: [], conn: [] };
+  let knownIds = new Set();
+  let firstLoad = true;
+  let pollCount = 0;
+
+  const $ = id => document.getElementById(id);
+
+  // ── Clock ──────────────────────────────────────────────────────
+  function tick() {
+    $('clock').textContent = new Date().toLocaleTimeString('pt-BR');
+  }
+  setInterval(tick, 1000); tick();
+
+  function fmtTime(ts) {
+    return new Date(ts * 1000).toLocaleTimeString('pt-BR');
+  }
+
+  // ── Canvas chart ───────────────────────────────────────────────
+  function drawChart(id, data, color, maxVal, unit) {
+    const canvas = $(id);
+    if (!canvas) return;
+    const r = canvas.getBoundingClientRect();
+    canvas.width  = r.width  || canvas.offsetWidth  || 340;
+    canvas.height = r.height || canvas.offsetHeight || 60;
+
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // bg
+    ctx.fillStyle = '#0f1117';
+    ctx.fillRect(0, 0, W, H);
+
+    // grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach(f => {
+      ctx.beginPath();
+      ctx.moveTo(0, H * f); ctx.lineTo(W, H * f);
+      ctx.stroke();
+    });
+
+    if (data.length < 2) {
+      ctx.fillStyle = '#5a6a82';
+      ctx.font = '11px IBM Plex Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('sem dados', W / 2, H / 2 + 4);
+      return;
+    }
+
+    const pad = { t: 4, r: 6, b: 4, l: 28 };
+    const cW = W - pad.l - pad.r;
+    const cH = H - pad.t - pad.b;
+    const xS = cW / (data.length - 1);
+    const getY = v => pad.t + cH - Math.min(v / maxVal, 1) * cH;
+
+    // fill
+    const g = ctx.createLinearGradient(0, pad.t, 0, pad.t + cH);
+    g.addColorStop(0, color + '30');
+    g.addColorStop(1, color + '00');
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad.l + i * xS, y = getY(v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    const lx = pad.l + (data.length - 1) * xS;
+    ctx.lineTo(lx, pad.t + cH);
+    ctx.lineTo(pad.l, pad.t + cH);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad.l + i * xS, y = getY(v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // latest dot
+    ctx.beginPath();
+    ctx.arc(pad.l + (data.length-1)*xS, getY(data[data.length-1]), 3, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // y labels
+    ctx.fillStyle = '#5a6a82';
+    ctx.font = '9px IBM Plex Mono';
+    ctx.textAlign = 'right';
+    [0, 0.5, 1].forEach(f => {
+      const v = (maxVal * f).toFixed(0);
+      ctx.fillText(v + unit, pad.l - 3, getY(maxVal * f) + 3);
+    });
+  }
+
+  function redraw() {
+    const maxC = Math.max(30, ...buf.conn, 1);
+    drawChart('chart-cpu',  buf.cpu,  '#22c55e', 100,  '%');
+    drawChart('chart-ram',  buf.ram,  '#60a5fa', 100,  '%');
+    drawChart('chart-conn', buf.conn, '#f59e0b', maxC, '');
+  }
+
+  // ── Status ─────────────────────────────────────────────────────
+  async function fetchStatus() {
+    try {
+      const r = await fetch(API + '/api/status');
+      if (!r.ok) throw 0;
+      $('status-dot').className = 'dot online';
+      $('status-text').textContent = 'Online';
+    } catch {
+      $('status-dot').className = 'dot offline';
+      $('status-text').textContent = 'Offline';
+    }
+  }
+
+  // ── Metrics ────────────────────────────────────────────────────
+  async function fetchMetrics() {
+    const r = await fetch(API + '/api/metrics');
+    const data = await r.json();
+    if (!Array.isArray(data) || !data.length) return;
+
+    const pts = data.slice(0, MAX_PTS).reverse();
+    buf.cpu  = pts.map(d => d.cpu_percent ?? 0);
+    buf.ram  = pts.map(d => d.ram_percent ?? 0);
+    buf.conn = pts.map(d => d.active_connections ?? 0);
+
+    const l = data[0];
+    $('cpu-value').textContent  = (l.cpu_percent  ?? 0).toFixed(1) + '%';
+    $('ram-value').textContent  = (l.ram_percent  ?? 0).toFixed(1) + '%';
+    $('conn-value').textContent = l.active_connections ?? '–';
+    $('sensor-id').textContent  = l.sensor_id ?? '–';
+    $('sensor-label').textContent = l.sensor_id ? 'sensor: ' + l.sensor_id : 'aguardando sensor';
+    $('udp-seq').textContent    = l.seq_number ?? '–';
+    $('last-packet').textContent = fmtTime(l.timestamp);
+
+    if (data.length >= 2) {
+      const newest = data[0].seq_number ?? 0;
+      const oldest = data[data.length-1].seq_number ?? 0;
+      const exp = newest - oldest;
+      const rcv = data.length - 1;
+      const loss = exp > 0 ? (((exp - rcv) / exp) * 100).toFixed(1) : '0.0';
+      $('udp-loss').textContent = loss + '%';
+    }
+
+    redraw();
+  }
+
+  // ── Events ─────────────────────────────────────────────────────
+  const CAT_LABEL = {
+    FILE_INTEGRITY:   'File Integrity',
+    BRUTE_FORCE:      'Brute Force',
+    PORT_SCAN:        'Port Scan',
+    CONNECTION_FLOOD: 'Conn. Flood',
+  };
+
+  async function fetchEvents() {
+    const r = await fetch(API + '/api/events');
+    const evs = await r.json();
+    if (!Array.isArray(evs)) return;
+
+    let tot = evs.length, crit = 0, high = 0, med = 0, low = 0;
+    evs.forEach(e => {
+      const s = (e.severity || '').toUpperCase();
+      if (s === 'CRITICAL') crit++;
+      else if (s === 'HIGH') high++;
+      else if (s === 'MEDIUM') med++;
+      else low++;
+    });
+    $('count-total').textContent    = tot;
+    $('count-critical').textContent = crit;
+    $('count-high').textContent     = high;
+    $('count-medium').textContent   = med;
+    $('count-low').textContent      = low;
+
+    if (!firstLoad) {
+      const newCrit = evs.filter(e =>
+        (e.severity || '').toUpperCase() === 'CRITICAL' && !knownIds.has(e.id)
+      );
+      if (newCrit.length) showAlert(newCrit[0].description || 'Evento crítico detectado');
+    }
+
+    evs.forEach(e => knownIds.add(e.id));
+    firstLoad = false;
+
+    const tbody = $('events-tbody');
+    if (!evs.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty">Nenhum alerta registrado.</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = evs.map(e => {
+      const sev = (e.severity || 'LOW').toUpperCase();
+      const cat = CAT_LABEL[e.category] || (e.category || '–');
+      const isNew = !knownIds.has(e.id);
+      return `
+        <tr class="${isNew ? 'new' : ''}">
+          <td class="mono" style="color:var(--text-dim)">${e.id}</td>
+          <td class="mono" style="color:var(--text-dim)">${fmtTime(e.timestamp)}</td>
+          <td class="mono">${e.sensor_id ?? '–'}</td>
+          <td><span class="sev ${sev}">${sev}</span></td>
+          <td><span class="cat">${cat}</span></td>
+          <td class="desc">${e.description ?? '–'}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ── Alert banner ───────────────────────────────────────────────
+  let alertTimer;
+  function showAlert(msg) {
+    $('alert-msg').textContent = msg;
+    $('alert-banner').classList.add('visible');
+    clearTimeout(alertTimer);
+    alertTimer = setTimeout(dismissAlert, 8000);
+  }
+  function dismissAlert() {
+    $('alert-banner').classList.remove('visible');
+  }
+  window.dismissAlert = dismissAlert;
+
+  // ── Poll ───────────────────────────────────────────────────────
+  async function poll() {
+    $('spinner').style.display = 'block';
+    try {
+      await Promise.all([fetchStatus(), fetchMetrics(), fetchEvents()]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      $('spinner').style.display = 'none';
+    }
+    pollCount++;
+    $('poll-count').textContent  = pollCount;
+    $('last-update').textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR');
+  }
+
+  redraw();
+  poll();
+  setInterval(poll, POLL_MS);
+
+  let rsz;
+  window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(redraw, 150); });
+</script>
+</body>
+</html>
