@@ -1,7 +1,12 @@
 import socket
 import threading
 import json
-from database import get_db_connection
+import os
+import sys
+pasta_raiz = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if pasta_raiz not in sys.path:
+    sys.path.append(pasta_raiz)
+from database.database import get_db_connection
 import time
 
 IP_LISTEN = "127.0.0.1"
@@ -37,7 +42,13 @@ def listen_udp():
                 INSERT INTO metrics (sensor_id, cpu_percent, ram_percent, timestamp)
                 VALUES (?, ?, ?, ?)
                 """,
-                (sensor_id, payload["cpu_percent"], payload["ram_percent"], pacote["timestamp"])
+                (sensor_id, 
+                    payload["cpu_percent"], 
+                    payload["ram_percent"], 
+                    payload["active_connections"],
+                    pacote["seq_number"],
+                    pacote["timestamp"]
+                )
             )
 
             conn.commit()
@@ -94,7 +105,7 @@ def listen_tcp():
 
             conn.commit()
             conn.close()
-            print(f"[TCP 💾] Alerta crítico do sensor {sensor_id} salvo no banco com sucesso!")
+            print(f"[TCP] Alerta crítico do sensor {sensor_id} salvo no banco com sucesso!")
 
         except Exception as e:
             print(f"[ERRO TCP] Falha ao processar ou salvar o alerta: {e}")
