@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from werkzeug.security import generate_password_hash 
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'database', 'netwatch.db')
 
@@ -65,7 +66,21 @@ def init_db():
             udp_loss_percent    REAL
         );
     ''')
-    
+
+    # Tabela: users
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL
+        );
+    ''')
+    # cria o user padrao admin
+    cursor.execute("SELECT * FROM users WHERE username = 'admin'")
+    if not cursor.fetchone():
+        hash_senha = generate_password_hash("admin123")
+        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", ("admin", hash_senha))
+
     conn.commit()
     conn.close()
     print("[*] Base de dados SQLite inicializada com sucesso em modo WAL.")
