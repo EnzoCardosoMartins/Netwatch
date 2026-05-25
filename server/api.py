@@ -175,6 +175,33 @@ def obter_estatisticas():
 
 
 
+@app.route("/api/network/throughput", methods=["GET"])
+def obter_throughput():
+    """
+    Calcula a vazão útil (Throughput) instantânea do canal UDP
+    em kilobits por segundo (kbps).
+    """
+
+    try:
+
+        from server import TOTAL_UDP_BYTES, UDP_START_TIME
+
+        tempo_decorrido = time.time() - UDP_START_TIME
+        if tempo_decorrido <= 0 :
+            tempo_decorrido = 1.0
+
+        throughput_bps = (TOTAL_UDP_BYTES * 8) / tempo_decorrido
+        throughput_kbps = throughput_bps/1000
+
+        return jsonify({"total_bytes_recebidos": TOTAL_UDP_BYTES, "tempo_ativo_segundos": round(tempo_decorrido, 2), "throughput_kbps": round(throughput_kbps, 3)}), 200
+
+    except Exception as e:
+        return jsonify({"erro": f"Falha ao calcular throughput: {str(e)}"}), 500
+
+
+
+
+
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     """

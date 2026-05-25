@@ -13,6 +13,10 @@ IP_LISTEN = "127.0.0.1"
 UDP_PORT = 9999
 TCP_PORT = 9998
 
+# Variaveis para o calculo de Throughput
+TOTAL_UDP_BYTES = 0
+UDP_START_TIME = time.time()
+
 
 # Recebe os dados UDP (normais) do sensor
 def listen_udp():
@@ -26,6 +30,11 @@ def listen_udp():
 
         # Recebe os dados vindos do sensor e coloca em dados_bytes e endereco_cliente
         dados_bytes, endereco_cliente = udp_socket.recvfrom(4096)
+
+        # Soma a quantidade de bytes para o calculo de Throughput
+        global TOTAL_UDP_BYTES
+        TOTAL_UDP_BYTES += len(dados_bytes)
+
         mensagem = dados_bytes.decode('utf-8')
         print(f"\n[UDP] Recebido de {endereco_cliente}: {mensagem}")
 
