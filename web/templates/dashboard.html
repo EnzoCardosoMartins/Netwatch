@@ -561,7 +561,7 @@
           <canvas id="chart-conn"></canvas>
         </div>
 
-        <div class="info-grid">
+<div class="info-grid">
           <div class="info-item">
             <span class="info-key">Sensor ID</span>
             <span class="info-val" id="sensor-id">–</span>
@@ -583,8 +583,8 @@
             <span class="info-val" id="udp-loss">–</span>
           </div>
           <div class="info-item">
-            <span class="info-key">Polling</span>
-            <span class="info-val">2 s</span>
+            <span class="info-key">Throughput UDP</span>
+            <span class="info-val" id="udp-throughput">–</span>
           </div>
         </div>
 
@@ -801,13 +801,37 @@
     $('udp-seq').textContent    = l.seq_number ?? '–';
     $('last-packet').textContent = fmtTime(l.timestamp);
 
-    if (data.length >= 2) {
-      const newest = data[0].seq_number ?? 0;
-      const oldest = data[data.length-1].seq_number ?? 0;
+    const currentSensorId = l.sensor_id;
+    const sensorData = data.filter(d => d.sensor_id === currentSensorId);
+
+    if (sensorData.length >= 2) {
+      // ── Cálculo de Perda de Pacotes Corrigido ───────────────────
+      const newest = sensorData[0].seq_number ?? 0;
+      const oldest = sensorData[sensorData.length-1].seq_number ?? 0;
       const exp = newest - oldest;
-      const rcv = data.length - 1;
-      const loss = exp > 0 ? (((exp - rcv) / exp) * 100).toFixed(1) : '0.0';
-      $('udp-loss').textContent = loss + '%';
+      const rcv = sensorData.length - 1;
+      
+      let loss = 0.0;
+      // Só calcula se o número esperado for maior que zero e maior/igual aos recebidos
+      if (exp > 0 && exp >= rcv) {
+        loss = ((exp - rcv) / exp) * 100;
+      }
+      $('udp-loss').textContent = loss.toFixed(1) + '%';
+
+      // ── Cálculo de Throughput UDP Corrigido ──────────────────────
+      const tempoDecorrido = sensorData[0].timestamp - sensorData[sensorData.length - 1].timestamp;
+      
+      if (tempoDecorrido > 0) {
+        const tamanhoMedioPacoteBytes = 320;
+        const totalBytesJanela = sensorData.length * tamanhoMedioPacoteBytes;
+        const throughputKbps = ((totalBytesJanela * 8) / tempoDecorrido) / 1000;
+        $('udp-throughput').textContent = throughputKbps.toFixed(3) + ' kbps';
+      } else {
+        $('udp-throughput').textContent = '–';
+      }
+    } else {
+      $('udp-loss').textContent = '0.0%';
+      $('udp-throughput').textContent = '–';
     }
 
     redraw();
