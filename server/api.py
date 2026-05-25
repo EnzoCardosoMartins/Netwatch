@@ -2,6 +2,7 @@ from flask import Flask, jsonify, send_file, request
 from flask_cors import CORS
 import os
 import sys
+from werkzeug.security import generate_password_hash, check_password_hash
 pasta_raiz = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if pasta_raiz not in sys.path:
     sys.path.append(pasta_raiz)
@@ -171,6 +172,42 @@ def obter_estatisticas():
  
     except Exception as e:
         return jsonify({"erro": f"Falha ao calcular estatísticas: {str(e)}"}), 500
+
+
+
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    """
+    Rota de registro simples de usuario
+    """
+
+    try:
+        dados = request.get_json()
+        usuario = dados.get("username")
+        senha = dados.get("password")
+
+        if not usuario or not senha:
+            return jsonify({"status": "error", "message": "Usuário e senha são obrigatórios."}), 400
+        
+        con = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM users WHERE username = ?", (usuario,))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({"status": "error", "message": "Este usuário já está cadastrado."}), 400
+        
+        hash_senha = generate_password_hash(senha)
+        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", ("admin", hash_senha))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success", "message": "Operador cadastrado com sucesso!"}), 201
+
+    except Exception as e:
+        return jsonify({"erro": f"Falha no servidor: {str(e)}"}), 500
+
 
 
 @app.route("/api/auth/login", methods=["POST"])
