@@ -182,21 +182,28 @@ def register():
     """
 
     try:
+
+        # Pega os dados dos campos
         dados = request.get_json()
         usuario = dados.get("username")
         senha = dados.get("password")
 
+        # Se os campos tiverem vazios
         if not usuario or not senha:
             return jsonify({"status": "error", "message": "Usuário e senha são obrigatórios."}), 400
         
-        con = get_db_connection()
+        # Se conecta com o database
+        conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Procura o user no database
         cursor.execute("SELECT * FROM users WHERE username = ?", (usuario,))
+        # Se o user ja existe
         if cursor.fetchone():
             conn.close()
             return jsonify({"status": "error", "message": "Este usuário já está cadastrado."}), 400
         
+        # Gera o hash da senha e guarda junto com o user
         hash_senha = generate_password_hash(senha)
         cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", ("admin", hash_senha))
 
@@ -217,14 +224,26 @@ def login():
     Recebe um JSON com usuário e senha e valida as credenciais.
     """
     try:
+        # Pega os campos de login
         dados = request.get_json()
         usuario = dados.get("username")
         senha = dados.get("password")
 
-        if usuario == "admin" and senha == "admin123":
+        if not usuario or not senha:
+            return jsonify({"status": "error", "message": "Usuário e senha são obrigatórios."}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (usuario,))
+        user = cursor.fetchone()
+        conn.close()
+
+        # Se o usuário existe E a senha informada bater com o hash salvo
+        if user and check_password_hash(user["password_hash"], senha):
             return jsonify({"status": "success", "message": "Autenticado com sucesso!"}), 200
         else:
             return jsonify({"status": "error", "message": "Usuário ou senha incorretos."}), 401
+
     except Exception as e:
         return jsonify({"erro": f"Falha no servidor de autenticação: {str(e)}"}), 500
 
