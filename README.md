@@ -650,7 +650,7 @@ Esta seção documenta problemas encontrados no código que devem ser resolvidos
 
 ---
 
-### 🟡 PENDÊNCIA 3 — Simulação de ataques `BRUTE_FORCE` e `PORT_SCAN` não implementada
+### 🟡 PENDÊNCIA 1 — Simulação de ataques `BRUTE_FORCE` e `PORT_SCAN` não implementada
 
 **Arquivos afetados:** `sensor/sensor.py` (precisa de novas funções)  
 **Problema:** O projeto prevê a simulação de dois cenários de ataque adicionais que são importantes para demonstrar múltiplas categorias de alerta no painel. Atualmente só existe `FILE_INTEGRITY`.
@@ -714,7 +714,7 @@ Depois, chamar `simular_brute_force()` e ocasionalmente `simular_port_scan()` de
 
 ---
 
-### 🟡 PENDÊNCIA 4 — Tabela `sensors` nunca é populada
+### 🟡 PENDÊNCIA 2 — Tabela `sensors` nunca é populada
 
 **Arquivo:** `server/server.py`  
 **Problema:** A tabela `sensors` é criada no banco mas nunca recebe inserções. O `server.py` não registra o sensor ao receber o primeiro pacote.
@@ -732,7 +732,7 @@ cursor.execute("""
 
 ---
 
-### 🟡 PENDÊNCIA 5 — Criar `docs/protocolo.md`
+### 🟡 PENDÊNCIA 3 — Criar `docs/protocolo.md`
 
 O relatório da disciplina exige **"uma clara descrição do protocolo de aplicação"**. É necessário criar o arquivo `docs/protocolo.md` com a especificação formal do protocolo NAP (a seção 6 deste README pode ser usada como base).
 
