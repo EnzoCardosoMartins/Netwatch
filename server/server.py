@@ -73,23 +73,34 @@ def listen_tcp():
     while True:
         # Aceita a conexao
         conexao_cliente, endereco_cliente = tcp_socket.accept()
-        # Pega os bytes
-        dados_bytes = conexao_cliente.recv(4096)
-        mensagem = dados_bytes.decode('utf-8')
-        print(f"\n[TCP] Recebido de {endereco_cliente}: {mensagem}")
 
         try:
+            # Pega os bytes
+            dados_bytes = conexao_cliente.recv(4096)
+            # Calcula o tempo exato de recebimento para calcular o RTT
+            tempo_recebimento = time.time()
+            mensagem = dados_bytes.decode('utf-8')
+            print(f"\n[TCP] Recebido de {endereco_cliente}: {mensagem}")
             pacote = json.loads(mensagem)
+
             sensor_id = pacote["sensor_id"]
             payload = pacote["payload"]
 
+            # Pega o tempo em que o pacote foi enviado pelo sensor
+            tempo_envio = pacote["timestamp"]
+
+            # - Calculo do RTT -
+            rtt_ms = (tempo_recebimento - tempo_envio) * 1000
+            if rtt_ms < 0:
+                rtt_ms = 0  # Para evitar erros
+            print(f"\n[TCP] Alerta crítico recebido de {endereco_cliente}. RTT: {rtt_ms:.2f} ms")
+
             conn = get_db_connection()
             cursor = conn.cursor()
-
             cursor.execute(
                 """
-                INSERT INTO events (sensor_id, type, category, severity, description, raw_payload, timestamp, received_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO events (sensor_id, type, category, severity, description, raw_payload, timestamp, rtt_ms, received_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     sensor_id,
@@ -98,14 +109,27 @@ def listen_tcp():
                     payload["severity"],        # "CRITICAL"
                     payload["description"],
                     mensagem,                   # JSON completo para auditoria histórica
-                    pacote["timestamp"],
-                    time.time()                 # Momento exato em que o servidor recebeu
+                    tempo_envio,
+                    rtt_ms,
+                    tempo_recebimento                 # Momento exato em que o servidor recebeu
                 )
             )
 
             conn.commit()
             conn.close()
             print(f"[TCP] Alerta crítico do sensor {sensor_id} salvo no banco com sucesso!")
+
+            # Resposta ACK
+            resposta_ack = {
+                "protocolo": "NAP",
+                "version": "1.0",
+                "type": "ACK",
+                "status": "SUCESS",
+                "rtt_ms": round(rtt_ms, 2),
+                "timestamp": time.time()
+            }
+            conexao_cliente.sendall(json.dumps(resposta_ack).encode('utf-8'))
+
 
         except Exception as e:
             print(f"[ERRO TCP] Falha ao processar ou salvar o alerta: {e}")

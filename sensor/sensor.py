@@ -12,14 +12,25 @@ hash_antigo = calcular_hash_arquivo("collector.py")
 
 
 def enviar_alerta_tcp(payload_alerta):
+    try:
+        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        endereco_destino = (IP_SERVER, TCP_PORT)
+        tcp_socket.connect(endereco_destino)
+        mensagem = json.dumps(payload_alerta).encode('utf-8')
+        tcp_socket.sendall(mensagem)
 
-    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    endereco_destino = (IP_SERVER, TCP_PORT)
-    tcp_socket.connect(endereco_destino)
-    mensagem = json.dumps(payload_alerta).encode('utf-8')
-    tcp_socket.sendall(mensagem)
-    tcp_socket.close()
+        dados_resposta = tcp_socket.recv(1024)
+        if dados_resposta:
+            resposta_json = json.loads(dados_resposta.decode('utf-8'))
+            if resposta_json["type"] == "ACK":
+                rtt = resposta_json["rtt_ms"]
+                print(f"[ACK RECEBIDO] Servidor confirmou o recebimento do alerta!")
+                print(f"[RTT MEDIDO] Tempo de Ida e Volta (Fim-a-Fim): {rtt} ms")
 
+        tcp_socket.close()
+        
+    except Exception as e:
+        print(f"[ERRO TCP] Não foi possível enviar alerta ou receber ACK: {e}")
 
 
 def iniciar_sensor():
