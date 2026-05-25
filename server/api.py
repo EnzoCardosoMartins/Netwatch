@@ -205,7 +205,7 @@ def register():
         
         # Gera o hash da senha e guarda junto com o user
         hash_senha = generate_password_hash(senha)
-        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", ("admin", hash_senha))
+        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (usuario, hash_senha))
 
         conn.commit()
         conn.close()

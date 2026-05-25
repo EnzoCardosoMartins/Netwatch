@@ -419,9 +419,53 @@
       .stats { grid-template-columns: 1fr 1fr; }
       .header-right #clock, .header-right #last-update { display: none; }
     }
+
+
+    /* ── Modal de Autenticação ───────────────────────────────── */
+    #auth-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 17, 23, 0.95);
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .auth-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 30px; width: 340px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .auth-title { font-size: 1.2rem; color: var(--green); margin-bottom: 20px; font-weight: 600;}
+    .auth-input {
+      width: 100%; padding: 10px; margin-bottom: 15px;
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); font-family: 'IBM Plex Mono', monospace;
+    }
+    .auth-input:focus { outline: 1px solid var(--green); }
+    .auth-btn {
+      width: 100%; padding: 10px; border: none; cursor: pointer;
+      font-weight: 600; margin-bottom: 10px;
+      background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    }
+    .auth-btn.primary { background: var(--green); color: #000; border: none;}
+    .auth-btn:hover { filter: brightness(1.2); }
+    .auth-msg { color: var(--red); font-size: 0.8rem; text-align: center; height: 20px;}
+
+
   </style>
 </head>
 <body>
+
+
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-title">NetWatch SOC Access</div>
+    <input type="text" id="auth-user" class="auth-input" placeholder="Usuário">
+    <input type="password" id="auth-pass" class="auth-input" placeholder="Senha">
+    <div id="auth-error" class="auth-msg"></div>
+    <button class="auth-btn primary" onclick="executarAuth('login')">ENTRAR</button>
+    <button class="auth-btn" onclick="executarAuth('register')">CADASTRAR NOVO OPERADOR</button>
+  </div>
+</div>
 
 <!-- Alert banner -->
 <div id="alert-banner">
@@ -565,6 +609,7 @@
               <th>Sensor</th>
               <th>Severidade</th>
               <th>Categoria</th>
+              <th>RTT (ms)</th>
               <th>Descrição</th>
             </tr>
           </thead>
@@ -822,6 +867,7 @@
           <td class="mono">${e.sensor_id ?? '–'}</td>
           <td><span class="sev ${sev}">${sev}</span></td>
           <td><span class="cat">${cat}</span></td>
+          <td class="mono">${e.rtt_ms !== null ? e.rtt_ms.toFixed(2) + ' ms' : '–'}</td>
           <td class="desc">${e.description ?? '–'}</td>
         </tr>`;
     }).join('');
@@ -840,33 +886,49 @@
   }
   window.dismissAlert = dismissAlert;
 
-// ── Controle de Autenticação na Inicialização ───────────────────
-  async function realizarLogin() {
-    // Para manter o front limpo e sem criar páginas complexas, usamos o prompt nativo do navegador
-    let username = prompt("NetWatch SOC - Digite o Usuário:");
-    let password = prompt("NetWatch SOC - Digite a Senha:");
+// ── Nova Lógica de Autenticação com Modal ───────────────────
+  async function executarAuth(acao) {
+    const user = $('auth-user').value;
+    const pass = $('auth-pass').value;
+    const errorDiv = $('auth-error');
+
+    if (!user || !pass) {
+      errorDiv.textContent = "Preencha todos os campos.";
+      return;
+    }
+
+    errorDiv.textContent = "Processando...";
+    errorDiv.style.color = "var(--text-mid)";
+
+    const endpoint = acao === 'login' ? '/api/auth/login' : '/api/auth/register';
 
     try {
-      const r = await fetch(API + '/api/auth/login', {
+      const r = await fetch(API + endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username: user, password: pass })
       });
 
       const res = await r.json();
 
-      if (r.status === 200) {
-        alert("Acesso autorizado! Iniciando monitoramento...");
-        // Se deu certo, inicia o pooling dos gráficos
-        poll();
-        setInterval(poll, POLL_MS);
+      if (r.status === 200 || r.status === 201) {
+        if (acao === 'login') {
+          // Esconde o modal e libera o painel!
+          $('auth-overlay').style.display = 'none';
+          poll();
+          setInterval(poll, POLL_MS);
+        } else {
+          errorDiv.style.color = "var(--green)";
+          errorDiv.textContent = "Cadastro efetuado! Agora faça o login.";
+          $('auth-pass').value = ''; // Limpa a senha
+        }
       } else {
-        alert("Erro: " + res.message + " A página será recarregada.");
-        window.location.reload();
+        errorDiv.style.color = "var(--red)";
+        errorDiv.textContent = res.message || "Erro de autenticação.";
       }
     } catch (error) {
-      alert("❌ Erro Crítico: Não foi possível conectar ao servidor de autenticação.");
-      window.location.reload();
+      errorDiv.style.color = "var(--red)";
+      errorDiv.textContent = "Erro crítico de conexão com a API.";
     }
   }
 
@@ -887,12 +949,9 @@
     $('last-update').textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR');
   }
 
-  // ATENÇÃO: Substitua as linhas finais do seu script antigo por isso:
+  // Desenha os gráficos vazios na inicialização
   redraw();
   
-  // Em vez de chamar o poll() direto, chamamos a barreira de login primeiro!
-  realizarLogin(); 
-
   let rsz;
   window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(redraw, 150); });
 </script>
