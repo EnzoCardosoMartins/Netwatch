@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, send_file
+from flask import Flask, jsonify, send_file, request
 from flask_cors import CORS
 import os
 import sys
@@ -173,8 +173,23 @@ def obter_estatisticas():
         return jsonify({"erro": f"Falha ao calcular estatísticas: {str(e)}"}), 500
 
 
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    """
+    Rota de autenticação básica para o operador do SOC.
+    Recebe um JSON com usuário e senha e valida as credenciais.
+    """
+    try:
+        dados = request.get_json()
+        usuario = dados.get("username")
+        senha = dados.get("password")
 
-
+        if usuario == "admin" and senha == "admin123":
+            return jsonify({"status": "success", "message": "Autenticado com sucesso!"}), 200
+        else:
+            return jsonify({"status": "error", "message": "Usuário ou senha incorretos."}), 401
+    except Exception as e:
+        return jsonify({"erro": f"Falha no servidor de autenticação: {str(e)}"}), 500
 
 if __name__ == "__main__":
     print("[*] Iniciando o servidor da API HTTP...")

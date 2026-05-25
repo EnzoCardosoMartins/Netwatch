@@ -840,13 +840,45 @@
   }
   window.dismissAlert = dismissAlert;
 
-  // ── Poll ───────────────────────────────────────────────────────
+// ── Controle de Autenticação na Inicialização ───────────────────
+  async function realizarLogin() {
+    // Para manter o front limpo e sem criar páginas complexas, usamos o prompt nativo do navegador
+    let username = prompt("NetWatch SOC - Digite o Usuário:");
+    let password = prompt("NetWatch SOC - Digite a Senha:");
+
+    try {
+      const r = await fetch(API + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const res = await r.json();
+
+      if (r.status === 200) {
+        alert("Acesso autorizado! Iniciando monitoramento...");
+        // Se deu certo, inicia o pooling dos gráficos
+        poll();
+        setInterval(poll, POLL_MS);
+      } else {
+        alert("Erro: " + res.message + " A página será recarregada.");
+        window.location.reload();
+      }
+    } catch (error) {
+      alert("❌ Erro Crítico: Não foi possível conectar ao servidor de autenticação.");
+      window.location.reload();
+    }
+  }
+
+  // ── Poll com Tratamento de Erros Visual Avançado ────────────────
   async function poll() {
     $('spinner').style.display = 'block';
     try {
       await Promise.all([fetchStatus(), fetchMetrics(), fetchEvents()]);
     } catch (e) {
       console.error(e);
+      // TRATAMENTO DE ERROS OBRIGATÓRIO: Força o banner vermelho a exibir a falha de comunicação
+      showAlert("Falha Crítica na coleta de dados. Verifique a conexão com o banco SQLite.");
     } finally {
       $('spinner').style.display = 'none';
     }
@@ -855,9 +887,11 @@
     $('last-update').textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR');
   }
 
+  // ATENÇÃO: Substitua as linhas finais do seu script antigo por isso:
   redraw();
-  poll();
-  setInterval(poll, POLL_MS);
+  
+  // Em vez de chamar o poll() direto, chamamos a barreira de login primeiro!
+  realizarLogin(); 
 
   let rsz;
   window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(redraw, 150); });
