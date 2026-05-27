@@ -8,20 +8,20 @@
 
 ## Sumário
 
-1. [Introdução e Motivação](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#1-introdu%C3%A7%C3%A3o-e-motiva%C3%A7%C3%A3o)
-2. [Posição no Modelo Internet](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#2-posi%C3%A7%C3%A3o-no-modelo-internet)
-3. [Visão Geral da Arquitetura de Comunicação](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#3-vis%C3%A3o-geral-da-arquitetura-de-comunica%C3%A7%C3%A3o)
-4. [Identificação dos Participantes](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#4-identifica%C3%A7%C3%A3o-dos-participantes)
-5. [Canais de Transporte e Justificativa TCP vs. UDP](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#5-canais-de-transporte-e-justificativa-tcp-vs-udp)
-6. [Formato das Mensagens](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#6-formato-das-mensagens)
-7. [Sequência de Troca de Mensagens](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#7-sequ%C3%AAncia-de-troca-de-mensagens)
-8. [Medição de RTT e Throughput](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#8-medi%C3%A7%C3%A3o-de-rtt-e-throughput)
-9. [Comportamento sob Perda de Pacotes UDP](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#9-comportamento-sob-perda-de-pacotes-udp)
-10. [Retransmissão e Confiabilidade no Canal TCP](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#10-retransmiss%C3%A3o-e-confiabilidade-no-canal-tcp)
-11. [Encapsulamento nas Camadas do Modelo Internet](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#11-encapsulamento-nas-camadas-do-modelo-internet)
-12. [Multiplexação por Portas](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#12-multiplexa%C3%A7%C3%A3o-por-portas)
-13. [Tratamento de Erros](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#13-tratamento-de-erros)
-14. [Referência Completa das Mensagens](https://claude.ai/chat/e64660e0-a5f8-4a3c-8358-f4ec50629ed4#14-refer%C3%AAncia-completa-das-mensagens)
+1. [Introdução e Motivação](#1-introdução-e-motivação)
+2. [Posição no Modelo Internet](#2-posição-no-modelo-internet)
+3. [Visão Geral da Arquitetura de Comunicação](#3-visão-geral-da-arquitetura-de-comunicação)
+4. [Identificação dos Participantes](#4-identificação-dos-participantes)
+5. [Canais de Transporte e Justificativa TCP vs. UDP](#5-canais-de-transporte-e-justificativa-tcp-vs-udp)
+6. [Formato das Mensagens](#6-formato-das-mensagens)
+7. [Sequência de Troca de Mensagens](#7-sequência-de-troca-de-mensagens)
+8. [Medição de RTT e Throughput](#8-medição-de-rtt-e-throughput)
+9. [Comportamento sob Perda de Pacotes UDP](#9-comportamento-sob-perda-de-pacotes-udp)
+10. [Retransmissão e Confiabilidade no Canal TCP](#10-retransmissão-e-confiabilidade-no-canal-tcp)
+11. [Encapsulamento nas Camadas do Modelo Internet](#11-encapsulamento-nas-camadas-do-modelo-internet)
+12. [Multiplexação por Portas](#12-multiplexação-por-portas)
+13. [Tratamento de Erros](#13-tratamento-de-erros)
+14. [Referência Completa das Mensagens](#14-referência-completa-das-mensagens)
 
 ---
 
@@ -716,7 +716,5 @@ Todas as rotas encapsulam o acesso ao banco de dados em `try/except`. Em caso de
 |`status`|string|`"SUCESS"` indica que o alerta foi recebido, validado e persistido|
 |`rtt_ms`|float|RTT fim-a-fim em milissegundos: `(timestamp_recebimento - timestamp_envio) × 1000`|
 |`timestamp`|float|Unix timestamp do momento em que o servidor gerou a resposta ACK|
-
-> **Nota:** o campo `"protocolo"` (com acento) e o valor `"SUCESS"` (com um 's' a menos que o inglês correto) são uma inconsistência existente na implementação atual. Recomenda-se padronizar para `"protocol"` e `"SUCCESS"` em uma futura versão.
 
 ---
