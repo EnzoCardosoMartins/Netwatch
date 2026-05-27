@@ -130,7 +130,7 @@ def listen_tcp():
 
             # Resposta ACK
             resposta_ack = {
-                "protocolo": "NAP",
+                "protocol": "NAP",
                 "version": "1.0",
                 "type": "ACK",
                 "status": "SUCESS",

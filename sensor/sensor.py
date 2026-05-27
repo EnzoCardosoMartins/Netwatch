@@ -55,7 +55,7 @@ def iniciar_sensor():
         hash_novo = calcular_hash_arquivo("collector.py")
 
         if(hash_antigo != hash_novo):
-            print("[⚠️] ALERTA: Modificação detectada no arquivo crítico!")
+            print("ALERTA: Modificação detectada no arquivo crítico!")
 
             pacote_alerta = {
                 "protocol": "NAP",
